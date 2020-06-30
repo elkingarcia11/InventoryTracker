@@ -3,6 +3,7 @@ import {
   Dimensions,
   Modal,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   View,
   Text,
@@ -10,7 +11,7 @@ import {
   TouchableWithoutFeedback
 } from 'react-native';
 
-import { Button, Icon, Input, ListItem} from 'react-native-elements';
+import { Button, Card, Icon, Input, ListItem} from 'react-native-elements';
 
 // PRE-CONDITION TO ADD:
 /*
@@ -57,7 +58,9 @@ class UserScreen extends React.Component {
       freeValue: 0,
       modalVisible: false,
       addOrUpdate: 0,
+      transactionHistory:[],
     }
+    this.inputTwo = React.createRef();
   }
 
   // Have to check that it is a #
@@ -82,61 +85,79 @@ class UserScreen extends React.Component {
   }
 
   updateTotalLeft(){
-
     // update overwrites,
     // just make sure its a # and its >= 0 and <= total
-
     if( this.state.updateValue != "" && ( parseInt(this.state.updateValue) <= this.state.total && parseInt(this.state.updateValue) >= 0 && this.state.updateValue.match('^[0-9]+$')) ){
-      this.setState({
-        modalVisible: false,
-        stockLeft: parseInt(this.state.updateValue),
-        updateValue: 0,
-        sold: this.state.total - parseInt(this.state.updateValue),
-        owe: (this.state.total - parseInt(this.state.updateValue) - parseInt(this.state.freeValue) )*5,
-        });
-    } else{
-      this.setState({
-        modalVisible: false,
-        updateValue: 0,
-      })
-    }
-
-    // Free has to be a #, >= 0 <= this.state.sold
-    if( this.state.freeValue != "" && (parseInt(this.state.freeValue) <= this.state.sold && parseInt(this.state.freeValue) >= 0 && this.state.freeValue.match('^[0-9]+$')) ){
-      this.setState({
-        owe: (this.state.sold - parseInt(this.state.freeValue) )*5,
-        freeCount: parseInt(this.state.freeValue),
-        freeValue: 0,
-      });
-    } else{
-      this.setState({
-        freeValue: 0,
-      })
-    }
-
-    /*
-    if( this.state.freeValue != "" && (parseInt(this.state.freeValue) <= this.state.total && parseInt(this.state.freeValue) >= 0 && this.state.freeValue.match('^[0-9]+$')) ){
-
-    } else {
-      if( this.state.updateValue != "" && ( parseInt(this.state.updateValue) <= this.state.total && this.state.updateValue.match('^[0-9]+$') && parseInt(this.state.updateValue) >= 0) ){
+      if( this.state.freeValue != "" && (parseInt(this.state.freeValue) <= this.state.sold && parseInt(this.state.freeValue) >= 0 && this.state.freeValue.match('^[0-9]+$')) ){
         this.setState({
           modalVisible: false,
-          stockLeft: parseInt(this.state.updateValue),
           freeCount: parseInt(this.state.freeValue),
-          sold: parseInt(this.state.total) - parseInt(this.state.updateValue),
-          owe:  (parseInt(this.state.total) - parseInt(this.state.updateValue))*5,
+          stockLeft: parseInt(this.state.updateValue),
+          sold: this.state.total - parseInt(this.state.updateValue),
+          owe: (this.state.total - parseInt(this.state.updateValue) - parseInt(this.state.freeValue) )*5,
           updateValue: 0,
           freeValue: 0,
+          });
+      } else {
+        this.setState({
+          modalVisible: false,
+          sold: this.state.total - parseInt(this.state.updateValue),
+          owe: (this.state.total - parseInt(this.state.updateValue) )*5,
+          updateValue: 0,
+          freeValue: 0,
+          stockLeft: parseInt(this.state.updateValue),
         });
-      } else{
+      }
+    } else{
+      if( this.state.freeValue != "" && (parseInt(this.state.freeValue) <= this.state.sold && parseInt(this.state.freeValue) >= 0 && this.state.freeValue.match('^[0-9]+$')) ){
+        this.setState({
+          modalVisible: false,
+          owe: (this.state.sold - parseInt(this.state.freeValue) )*5,
+          freeCount: parseInt(this.state.freeValue),
+          freeValue: 0,
+          updateValue: 0,
+        });
+      } else {
         this.setState({
           modalVisible: false,
           updateValue: 0,
           freeValue: 0,
-        })
+        });
       }
     }
-*/
+  }
+
+  // Update transactions list -
+  // current Total, stock left, sold, free, owe becomes history order
+  // subtitle - date
+  // make sure not to close if total == 0, or if sold == 0
+  // then turn stock left into new total,
+  // subtract total - stockleft from grand total to get new grand total
+
+  // push to list
+  // update list
+
+  closeDay(){
+    if(this.state.total > 0 && this.state.sold > 0){
+      var tmpDate = new Date();
+      var newT = this.state.stockLeft;
+      var s = this.state.sold;
+      var trans = {total: this.state.total, stockLeft: newT, sold: s, free: this.state.freeCount, owe: this.state.owe, date: tmpDate.toString().substring(0,16)};
+      var newList = this.state.transactionHistory;
+      newList.push(trans);
+
+      this.setState({
+        sold: 0,
+        owe: 0,
+        freeCount: 0,
+        stockLeft: 0,
+        total: newT,
+        grandTotal: this.state.grandTotal - s,
+        transactionHistory: newList,
+      });
+    } else {
+      // alert
+    }
   }
 
   render(){
@@ -177,11 +198,13 @@ class UserScreen extends React.Component {
                 <Input
                   placeholder='Quantity left'
                   autoFocus={true}
-                  onSubmitEditing={() => this.updateTotalLeft()}
+                  blurOnSubmit={false}
+                  onSubmitEditing={() => { this.secondTextInput.focus(); }}
                   inputContainerStyle={{width: windowWidth*.65}}
                   onChangeText={value => this.setState({ updateValue: value })}/>
                 <Text style={styles.modalText}>How many units were given for free?</Text>
                 <Input
+                  ref={(input) => { this.secondTextInput = input; }}
                   placeholder='Quantity given for free'
                   onSubmitEditing={() => this.updateTotalLeft()}
                   inputContainerStyle={{width: windowWidth*.65}}
@@ -197,11 +220,12 @@ class UserScreen extends React.Component {
             </View>
           </TouchableWithoutFeedback>
         </Modal>
-        <ListItem
-          title={this.state.name}
-          subtitle={"Total: "+this.state.total+"   Stock left: "+this.state.stockLeft+"   Sold: "+ this.state.sold +"   Free: "+this.state.freeCount+"   Owe: "+ this.state.owe}
-          bottomDivider
-        />
+
+        <Card title={this.state.name} titleStyle={{fontSize: 30}}>
+          <View style={styles.mainStats}>
+            <Text style={styles.mainStatsText}>{"Total: "+this.state.total+"   Sold: "+ this.state.sold + "   Free: "+this.state.freeCount+"   Owe: "+ this.state.owe+"   Stock left: "+this.state.stockLeft }</Text>
+          </View>
+        </Card>
 
         <View style={{borderColor: 'grey' , borderTopWidth: .15, borderBottomWidth: .2, backgroundColor: 'white', marginTop: 20, padding: 16, flexDirection: 'row', justifyContent: 'space-around', }}>
           <Button
@@ -226,6 +250,23 @@ class UserScreen extends React.Component {
             type="outline"
           />
         </View>
+
+        <Card title="Transaction History" titleStyle={{fontSize: 22, alignSelf: 'flex-start', }}>
+          <ScrollView style={{height: windowHeight* .4}}>
+        {
+          this.state.transactionHistory.map((u, i) => {
+            return (
+              <ListItem
+                key={i}
+                title={"Total: "+u.total+"   Sold: "+ u.sold + "   Free: "+u.free+"   Owe: "+ u.owe+"   Stock left: "+u.stockLeft }
+                subtitle={u.date}
+                bottomDivider
+              />
+            );
+          })
+          }
+        </ScrollView>
+      </Card>
       </SafeAreaView>
     );
   }
@@ -288,11 +329,23 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 20,
   },
-  modalSubText: {
-    marginTop: 15,
-    marginBottom: 15,
-    textAlign: "center",
-    fontSize: 17,
+  mainStats:{
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mainStatsText:{
+    fontSize: 15,
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  subStats:{
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  subStatsText:{
+    fontSize: 15,
+    marginTop: 10,
+    marginBottom: 10,
   }
 });
 
